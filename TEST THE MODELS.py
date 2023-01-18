@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # Get the current script's location
     script_dir = Path(__file__).parent
     # The folder containing the pickle files is located in the same directory as the script.
-    folder = script_dir
+    folder = script_dir / 'trained_models'
     print(folder)
     # Get a list of all pickle files in the folder
     model_files = [p for p in folder.glob('*.pkl') if p.is_file()]

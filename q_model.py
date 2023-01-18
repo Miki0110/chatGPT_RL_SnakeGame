@@ -71,7 +71,7 @@ def train_model(n_episodes, start_epsilon, alpha, gamma, start_table):
         tau = start_tau * np.exp(-decay_rate * episode)
 
         # Initialise the game
-        snake = SnakeGame()
+        snake = SnakeGame("Training")
         snake.new_game()
 
         # Get starting state
