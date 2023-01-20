@@ -52,10 +52,10 @@ class SnakeGame:
 
         # Draw the snake
         for square in self.snake_body:
-            pygame.draw.rect(self.window, (0, 255, 0), (square[0], square[1], 20, 20))
+            pygame.draw.rect(self.window, (0, 255, 0), (square[0]+1, square[1]+1, 18, 18))
 
         # Draw the apple
-        pygame.draw.rect(self.window, (255, 0, 0), (self.apple[0], self.apple[1], 20, 20))
+        pygame.draw.circle(self.window, (255, 0, 0), (self.apple[0]+10, self.apple[1]+10), 10)
 
         # Update the display
         pygame.display.update()
@@ -106,7 +106,7 @@ class SnakeGame:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
+                if event.key == pygame.K_UP and self.update_rate > 0:
                     self.update_rate += -5
                 if event.key == pygame.K_DOWN:
                     self.update_rate += 5
@@ -119,6 +119,8 @@ class SnakeGame:
                         self.debug = False
                     else:
                         self.debug = True
+                if event.key == pygame.K_ESCAPE:
+                    self.new_game()
                 print(f'update rate: {self.update_rate}')
 
         # To stop too many inputs at once
@@ -190,9 +192,14 @@ class SnakeGame:
         # Find the current direction
         cur_direction[self.actions.index(self.direction)] = 1
 
+
         # Find the food direction
         food_direction = np.array([apple_pos[0] < position[0], apple_pos[0] > position[0],
-                                   apple_pos[1] < position[1], apple_pos[1] > position[1]])
+                                   apple_pos[1] < position[1], apple_pos[1] > position[1]], dtype=int)
+        if self.debug:
+            print(f'direction:{cur_direction}')
+            print(f'food direction: {food_direction}')
+
         if self.death:
             self.death = False
             return np.concatenate((danger, cur_direction, food_direction), axis=None, dtype=int), distance, -1, len(self.snake_body)
@@ -203,21 +210,22 @@ class SnakeGame:
             return np.concatenate((danger, cur_direction, food_direction), axis=None, dtype=int), distance, 0, len(self.snake_body)
 
     def collision_check(self, position):
+        """[Danger straight", "Danger right", "Danger Left]"""
         danger = np.array([0, 0, 0])
         # Check for walls by checking if the snake head is near an edge
         if int(position[0]) == 0:
             if self.direction == "left":
                 danger[0] = 1
-            elif self.direction == "up":
-                danger[1] = 1
             elif self.direction == "down":
+                danger[1] = 1
+            elif self.direction == "up":
                 danger[2] = 1
         elif int(position[0]) == int(self.width // 20) - 1:
             if self.direction == "right":
                 danger[0] = 1
-            elif self.direction == "down":
-                danger[1] = 1
             elif self.direction == "up":
+                danger[1] = 1
+            elif self.direction == "down":
                 danger[2] = 1
         elif int(position[1]) == 0:
             if self.direction == "up":
@@ -235,18 +243,18 @@ class SnakeGame:
                 danger[2] = 1
 
         # Check if the snake is near its own body
-        snake_body = self.snake_body[:-2] // 20 # Convert into the grid format
-        for i in range(len(snake_body)):
+        snake_body = self.snake_body[:-2] // 20  # Convert into the grid format
+        for body in snake_body:
             # Check if the body parts are 1 unit away from the head
-            vertical = (snake_body[i,0] == position[0] and abs(position[1]-snake_body[i,1]) == 1)
-            horizontal = (snake_body[i,1] == position[1] and abs(position[0]-snake_body[i,0]) == 1)
+            vertical = (body[0] == position[0] and abs(position[1] - body[1]) == 1)
+            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) == 1)
 
             # The direction of danger changes depending on the direction of the snake
             if self.direction == "up":
                 if vertical:
                     danger[0] = 1
                 elif horizontal:
-                    if snake_body[i,0] > position[0]: # While moving up, to the right is +1 and left -1
+                    if body[0] > position[0]:  # While moving up, to the right is +1 and left -1
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -255,7 +263,7 @@ class SnakeGame:
                 if vertical:
                     danger[0] = 1
                 elif horizontal:
-                    if snake_body[i,0] < position[0]: # While moving down, to the right is -1 and left +1
+                    if body[0] < position[0]:  # While moving down, to the right is -1 and left +1
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -264,7 +272,7 @@ class SnakeGame:
                 if horizontal:
                     danger[0] = 1
                 elif vertical:
-                    if snake_body[i,0] < position[0]:
+                    if body[0] > position[0]:
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -273,7 +281,7 @@ class SnakeGame:
                 if horizontal:
                     danger[0] = 1
                 elif vertical:
-                    if snake_body[i,0] > position[0]:
+                    if body[0] < position[0]:
                         danger[1] = 1
                     else:
                         danger[2] = 1

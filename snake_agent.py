@@ -10,7 +10,7 @@ BATCH_SIZE = 1000
 
 
 class Agent:
-    def __init__(self, alpha, gamma):
+    def __init__(self, alpha, gamma, batch_size):
         q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left",
                     "food right", "food up", "food down"]
         actions = ["straight", "right turn", "left turn"]
@@ -18,6 +18,7 @@ class Agent:
         self.epsilon = 0  # Chance for random inputs
         self.gamma = gamma
         self.memory = deque(maxlen=100_000)  # popleft()
+        self.BATCH_SIZE = batch_size
 
         # Init the model and trainer
         self.model = QNetwork(len(q_states), 256, len(actions))
@@ -41,8 +42,8 @@ class Agent:
         self.memory.append((state, action, reward, next_state, done))  # popleft if memory exceed
 
     def train_long_memory(self):
-        if (len(self.memory) > BATCH_SIZE):
-            mini_sample = random.sample(self.memory, BATCH_SIZE)
+        if (len(self.memory) > self.BATCH_SIZE):
+            mini_sample = random.sample(self.memory, self.BATCH_SIZE)
         else:
             mini_sample = self.memory
         states, actions, rewards, next_states, dones = zip(*mini_sample)
@@ -64,11 +65,11 @@ def take_action(snake, action):
 
     # Check if the snake failed
     if event < 0:
-        reward = -10  # failed
+        reward = -100  # failed
         # print("failed")
         return current_state, reward, True, score
     elif event > 0:
-        reward = 10  # got an apple
+        reward = 100  # got an apple
     elif prev_distance == 2000:
         reward = 0  # Nothing happened
     elif distance > prev_distance:
@@ -89,7 +90,7 @@ def train_model(n_episodes):
     total_score = 0
     record = 0
     # Initialise the agent
-    agent = Agent(0.001, 0.9)
+    agent = Agent(0.01, 0.9, 1000)
     # Start the snake game
     snake = SnakeGame("Training", 1000, 800)
     # Initialise the game

@@ -202,21 +202,22 @@ class SnakeGame:
 
 
     def collision_check(self, position):
+        """[Danger straight", "Danger right", "Danger Left]"""
         danger = np.array([0, 0, 0])
         # Check for walls by checking if the snake head is near an edge
         if int(position[0]) == 0:
             if self.direction == "left":
                 danger[0] = 1
-            elif self.direction == "up":
-                danger[1] = 1
             elif self.direction == "down":
+                danger[1] = 1
+            elif self.direction == "up":
                 danger[2] = 1
         elif int(position[0]) == int(self.width // 20) - 1:
             if self.direction == "right":
                 danger[0] = 1
-            elif self.direction == "down":
-                danger[1] = 1
             elif self.direction == "up":
+                danger[1] = 1
+            elif self.direction == "down":
                 danger[2] = 1
         elif int(position[1]) == 0:
             if self.direction == "up":
@@ -234,18 +235,18 @@ class SnakeGame:
                 danger[2] = 1
 
         # Check if the snake is near its own body
-        snake_body = self.snake_body[:-2] // 20 # Convert into the grid format
-        for i in range(len(snake_body)):
+        snake_body = self.snake_body[:-2] // 20  # Convert into the grid format
+        for body in snake_body:
             # Check if the body parts are 1 unit away from the head
-            vertical = (snake_body[i,0] == position[0] and abs(position[1]-snake_body[i,1]) == 1)
-            horizontal = (snake_body[i,1] == position[1] and abs(position[0]-snake_body[i,0]) == 1)
+            vertical = (body[0] == position[0] and abs(position[1] - body[1]) == 1)
+            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) == 1)
 
             # The direction of danger changes depending on the direction of the snake
             if self.direction == "up":
                 if vertical:
                     danger[0] = 1
                 elif horizontal:
-                    if snake_body[i,0] > position[0]: # While moving up, to the right is +1 and left -1
+                    if body[0] > position[0]:  # While moving up, to the right is +1 and left -1
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -254,7 +255,7 @@ class SnakeGame:
                 if vertical:
                     danger[0] = 1
                 elif horizontal:
-                    if snake_body[i,0] < position[0]: # While moving down, to the right is -1 and left +1
+                    if body[0] < position[0]:  # While moving down, to the right is -1 and left +1
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -263,7 +264,7 @@ class SnakeGame:
                 if horizontal:
                     danger[0] = 1
                 elif vertical:
-                    if snake_body[i,0] < position[0]:
+                    if body[0] > position[0]:
                         danger[1] = 1
                     else:
                         danger[2] = 1
@@ -272,7 +273,7 @@ class SnakeGame:
                 if horizontal:
                     danger[0] = 1
                 elif vertical:
-                    if snake_body[i,0] > position[0]:
+                    if body[0] < position[0]:
                         danger[1] = 1
                     else:
                         danger[2] = 1

@@ -1,9 +1,6 @@
 import torch
 import os
 
-q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left", "food right", "food up", "food down"]
-actions = ["straight", "right turn", "left turn"]
-
 
 class QNetwork(torch.nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
