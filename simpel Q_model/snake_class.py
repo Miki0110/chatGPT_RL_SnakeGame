@@ -1,7 +1,6 @@
 import pygame
 import sys
 import numpy as np
-import time
 
 
 class SnakeGame:
@@ -38,13 +37,13 @@ class SnakeGame:
         if self.current_pos[0] < 0 or self.current_pos[0] >= self.width\
                 or self.current_pos[1] < 0 or self.current_pos[1] >= self.height:
             self.death = True
-            #print(f'Model {self.name}:\n reached a length of {len(self.snake_body)}')
+            print(f'Model {self.name}:\n reached a length of {len(self.snake_body)}')
             self.new_game()
 
         # Check for collision with the snake's body
         if any(np.array_equal(sub, self.current_pos) for sub in self.snake_body[:-1]):
             self.death = True
-            #print(f'Model {self.name}:\n reached a length of {len(self.snake_body)}')
+            print(f'Model {self.name}:\n reached a length of {len(self.snake_body)}')
             self.new_game()
 
     def update_screen(self):
@@ -60,16 +59,15 @@ class SnakeGame:
         # Update the display
         pygame.display.update()
 
-    def __init__(self, model_name, width, height):
+    def __init__(self, model_name):
         # Initialize pygame
         pygame.init()
         pygame.display.set_caption(model_name)
         self.name = model_name
-        self.update_rate = 50
 
         # Define the game window size
-        self.width = width
-        self.height = height
+        self.width = 800
+        self.height = 600
         self.square_size = 20
 
         # Initialize the game window
@@ -80,7 +78,6 @@ class SnakeGame:
         self.actions = ["left", "right", "up", "down"]
         self.death = False
         self.reward = False
-        self.debug = False
 
     def new_game(self):
         # Define the snake's initial position and movement speed
@@ -96,9 +93,9 @@ class SnakeGame:
         self.direction = "left"
 
         # Initialize the game clock
-        self.clock = time.perf_counter()*1000
+        self.clock = pygame.time.Clock()
 
-    def iterate_game(self):
+    def iterate_game(self, wait_time):
         speed = self.square_size
         # Check for user input
         for event in pygame.event.get():
@@ -106,20 +103,14 @@ class SnakeGame:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    self.update_rate += -5
-                if event.key == pygame.K_DOWN:
-                    self.update_rate += 5
-                if event.key == pygame.K_LEFT:
-                    self.update_rate = 0
-                if event.key == pygame.K_RIGHT:
-                    self.update_rate = 50
-                if event.key == pygame.K_b:
-                    if self.debug:
-                        self.debug = False
-                    else:
-                        self.debug = True
-                print(f'update rate: {self.update_rate}')
+                if event.key == pygame.K_LEFT and self.direction != "right":
+                    self.u_input = "left"
+                if event.key == pygame.K_RIGHT and self.direction != "left":
+                    self.u_input = "right"
+                if event.key == pygame.K_UP and self.direction != "down":
+                    self.u_input = "up"
+                if event.key == pygame.K_DOWN and self.direction != "up":
+                    self.u_input = "down"
 
         # To stop too many inputs at once
         # Update the snake's position
@@ -139,33 +130,31 @@ class SnakeGame:
         # update the screen
         self.update_screen()
 
-        # Wait for the timer to pass
-        while True:
-            if self.clock+self.update_rate < time.perf_counter()*1000:
-                self.clock = time.perf_counter()*1000
-                break
+        if not wait_time == -1:
+            # Wait for a moment
+            self.clock.tick(wait_time)
 
     def q_action(self, action):
         # Incase that no action needs to be taken
-        if action[0] == 1:
+        if action == 0:
             return
         if self.direction == "left":
-            if action[1] == 1:
+            if action == 1:
                 self.direction = "down"
             else:
                 self.direction = "up"
         elif self.direction == "right":
-            if action[1] == 1:
+            if action == 1:
                 self.direction = "up"
             else:
                 self.direction = "down"
         elif self.direction == "up":
-            if action[1] == 1:
+            if action == 1:
                 self.direction = "right"
             else:
                 self.direction = "left"
         else:
-            if action[1] == 1:
+            if action == 1:
                 self.direction = "left"
             else:
                 self.direction = "right"
@@ -175,7 +164,17 @@ class SnakeGame:
         position = coordinates // 20
         return position[0]*5+(position[1]+1)
 
-    # For returning the state of the game
+    def get_state(self):
+        # Calculate the distance from the apple
+        distance = int(np.linalg.norm(self.apple - self.current_pos))
+        if not self.death:
+            return [self.get_position(self.apple), self.actions.index(self.direction),
+                    self.get_position(self.current_pos), distance, len(self.snake_body)]
+        else:
+            self.death = False
+            return [self.get_position(self.apple), self.actions.index(self.direction),
+                    self.get_position(self.current_pos), distance, len(self.snake_body), -1]
+
     def get_state_qmodel(self):
         # Distance from apple
         distance = int(np.linalg.norm(self.apple - self.current_pos))
@@ -194,13 +193,13 @@ class SnakeGame:
         food_direction = np.array([apple_pos[0] < position[0], apple_pos[0] > position[0],
                                    apple_pos[1] < position[1], apple_pos[1] > position[1]])
         if self.death:
-            self.death = False
-            return np.concatenate((danger, cur_direction, food_direction), axis=None, dtype=int), distance, -1, len(self.snake_body)
+            return np.concatenate((danger, cur_direction, food_direction), axis=None), distance, -1
         elif self.reward:
             self.reward = False
-            return np.concatenate((danger, cur_direction, food_direction), axis=None, dtype=int), distance, 1, len(self.snake_body)
+            return np.concatenate((danger, cur_direction, food_direction), axis=None), distance, 1
         else:
-            return np.concatenate((danger, cur_direction, food_direction), axis=None, dtype=int), distance, 0, len(self.snake_body)
+            return np.concatenate((danger, cur_direction, food_direction), axis=None), distance, 0
+
 
     def collision_check(self, position):
         danger = np.array([0, 0, 0])
@@ -277,9 +276,6 @@ class SnakeGame:
                         danger[1] = 1
                     else:
                         danger[2] = 1
-        # In case I want info
-        if self.debug:
-            print(f'danger: {danger}')
         return danger
 
     def end_game(self):

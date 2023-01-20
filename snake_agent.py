@@ -1,130 +1,133 @@
 import numpy as np
 from snake_class import SnakeGame
-from q_model import Qmodel
-import pickle
+from deep_q_model import QLearning, QNetwork
+from collections import deque
+import torch
+import random
 
-q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left", "food right", "food up", "food down"]
-moves = ["left", "right", "up", "down"]
-actions = ["straight", "right turn", "left turn"]
-
-num_states = 2**len(q_states)
-num_episodes = 1000  # Amount of lives
-t_HZ = -1  # set to -1 if it should not wait at all
-p_HZ = 30  # Speed it will play after being done training
 prev_distance = 2000
+BATCH_SIZE = 1000
+
+
+class Agent:
+    def __init__(self, alpha, gamma):
+        q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left",
+                    "food right", "food up", "food down"]
+        actions = ["straight", "right turn", "left turn"]
+        self.episode = 0  # Amount of lives
+        self.epsilon = 0  # Chance for random inputs
+        self.gamma = gamma
+        self.memory = deque(maxlen=100_000)  # popleft()
+
+        # Init the model and trainer
+        self.model = QNetwork(len(q_states), 256, len(actions))
+        self.trainer = QLearning(self.model, learning_rate=alpha, discount_factor=self.gamma)
+
+    def get_action(self, state):
+        # random moves: tradeoff explotation / exploitation
+        self.epsilon = 80 - self.episode
+        final_move = [0, 0, 0]
+        if random.randint(0, 200) < self.epsilon:
+            move = random.randint(0, 2)
+            final_move[move] = 1
+        else:
+            state0 = torch.tensor(state, dtype=torch.float).cuda()
+            prediction = self.model(state0).cuda()  # prediction by model
+            move = torch.argmax(prediction).item()
+            final_move[move] = 1
+        return final_move
+
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))  # popleft if memory exceed
+
+    def train_long_memory(self):
+        if (len(self.memory) > BATCH_SIZE):
+            mini_sample = random.sample(self.memory, BATCH_SIZE)
+        else:
+            mini_sample = self.memory
+        states, actions, rewards, next_states, dones = zip(*mini_sample)
+        self.trainer.train_step(states, actions, rewards, next_states, dones)
+
+    def train_short_memory(self, state, action, reward, next_state, done):
+        self.trainer.train_step(state, action, reward, next_state, done)
 
 
 # Function for taking actions in the snake game
-def take_action(snake, action, speed):
+def take_action(snake, action):
     global prev_distance
 
     snake.q_action(action)
-    snake.iterate_game(speed)  # input is wait time in hz
+    snake.iterate_game()  # input is wait time in hz
 
     # Get state from the game
-    current_state, distance, event = snake.get_state_qmodel()
+    current_state, distance, event, score = snake.get_state_qmodel()
 
     # Check if the snake failed
     if event < 0:
-        reward = -100  # failed
+        reward = -10  # failed
         # print("failed")
-        return current_state, reward, True
+        return current_state, reward, True, score
     elif event > 0:
-        reward = 100  # got an apple
+        reward = 10  # got an apple
     elif prev_distance == 2000:
         reward = 0  # Nothing happened
     elif distance > prev_distance:
         # print("bad")
-        reward = -1
+        reward = 0
     else:
         # print("better")
-        reward = 1
+        reward = 0
 
     prev_distance = distance
-    return current_state, reward, False
+    return current_state, reward, False, score
 
 
-def train_model(n_episodes, softmax, start_value, model):
-    decay_rate = 0.001  # Bot recommended to start the decay rate at 0.001 and try making it smaller
-
-    # Loop through the game equal to the amount defined
-    for episode in range(n_episodes):
-        print(f"Episode = {episode + 1}")
-        # The more the snake trains the less random should it be
-        if softmax:
-            tau = start_value * np.exp(-decay_rate * episode)
-        else:
-            epsilon = start_value*np.exp(-decay_rate*episode)
-
-
-        # Initialise the game
-        snake = SnakeGame("Training")
-        snake.new_game()
-
+def train_model(n_episodes):
+    # Init values for tracking
+    scores = []
+    mean_scores = []
+    total_score = 0
+    record = 0
+    # Initialise the agent
+    agent = Agent(0.001, 0.9)
+    # Start the snake game
+    snake = SnakeGame("Training", 1000, 800)
+    # Initialise the game
+    snake.new_game()
+    while True:
         # Get starting state
-        state_values, _, _ = snake.get_state_qmodel()
-        model.set_state(state_values)
+        state_old, _, _, _ = snake.get_state_qmodel()
 
-        while True:
-            # Choose an action according to some policy
-            if softmax:
-                predicted_action = model.softmax_choose_action(tau)
-            else:
-                predicted_action = model.choose_action(epsilon)
+        # Get the calculated action
+        calc_action = agent.get_action(state_old)
 
-            # Take the action and observe new state
-            state_values, reward, completion = take_action(snake, predicted_action, t_HZ)
+        # Proceed with the game
+        state_new, reward, completion, new_score = take_action(snake, calc_action)
+        if not completion:
+            score = new_score
 
-            #Update the q_table
-            model.update_table(reward, state_values, predicted_action)
+        # Train the sucker
+        agent.train_short_memory(state_old, calc_action, reward, state_new, completion)
 
-            # Update the current state and check if the episode is finished
-            model.set_state(state_values)
-            if completion:
-                break
-    return
+        # remember
+        agent.remember(state_old, calc_action, reward, state_new, completion)
+
+        if completion:
+            snake.new_game()
+            agent.episode += 1
+            agent.train_long_memory()
+            if score > record:
+                record = score
+                agent.model.save("DQN_model.pth")
+            print(f'Game:{agent.episode}, Score:{score}, Record:{record}')
+
+            scores.append(score)
+            total_score += score
+            mean_score = total_score / agent.episode
+            mean_scores.append(mean_score)
+            #plot(plot_scores, plot_mean_scores)
 
 
 # MAIN LOOP
 if __name__ == "__main__":
-    # Define the exploration probability (epsilon)
-    start_epsilon = 0.1
-    start_tau = 1
-
-    # Define the learning rate and discount factor
-    alpha = 0.1  # learning rate
-    gamma = 0.9  # discount factor / how great are rewards
-
-    # Start the model
-    qmodel = Qmodel(num_states, len(actions), alpha, gamma)
-
-    # softmax
-    train_model(num_episodes, True, start_tau, qmodel)
-
-    # greedy approach
-    #train_model(num_episodes, False, start_epsilon, qmodel)
-
-    # Last snake game without any randomness
-    snake = SnakeGame("SNAKE")
-    snake.new_game()
-
-    # Get starting state
-    state_values, _, _ = snake.get_state_qmodel()
-    qmodel.set_state(state_values)
-    while True:
-        # Choose an action according to some policy
-        current_action = qmodel.choose_action(0)  # Zero means it only does what the model predicts
-
-        # Take the action and observe new state
-        state_values, _, completion = take_action(snake, current_action, p_HZ)
-
-        # Update the current state and check if the episode is finished
-        qmodel.set_state(state_values)
-        if completion:
-            break
-    snake.end_game()
-
-    # Lastly the trained model is saved
-    with open('trained_model.pkl', 'wb') as f:
-        # Pickle the array and write it to the file
-        pickle.dump(qmodel.q_table, f)
+    train_model(1000)
