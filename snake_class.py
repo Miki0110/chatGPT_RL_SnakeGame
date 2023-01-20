@@ -51,8 +51,33 @@ class SnakeGame:
         self.window.fill((0, 0, 0))
 
         # Draw the snake
+        body_size = 18
         for square in self.snake_body:
-            pygame.draw.rect(self.window, (0, 255, 0), (square[0]+1, square[1]+1, 18, 18))
+            pygame.draw.rect(self.window, (0, 255, 0), (square[0]+1, square[1]+1, body_size, body_size))
+
+        # Draw the eyes
+        head = self.snake_body[-1]
+        eye_size = 4
+        eye_distance = 8
+        pupil_size = 2
+
+        eye1_pos = (head[0] + eye_distance, head[1] + eye_size) if self.direction == "up" else (
+                    head[0] + eye_distance, head[1] + body_size - eye_size) if self.direction == "down" else (
+                    head[0] + eye_size, head[1] + eye_distance) if self.direction == "left" else (
+                    head[0] + body_size - eye_size, head[1] + eye_distance)
+
+        eye2_pos = (head[0] + 2 * eye_distance, head[1] + eye_size) if self.direction == "up" else (
+                    head[0] + 2 * eye_distance, head[1] + body_size - eye_size) if self.direction == "down" else (
+                    head[0] + eye_size, head[1] + 2 * eye_distance) if self.direction == "left" else (
+                    head[0] + body_size - eye_size, head[1] + 2 * eye_distance)
+
+        pupil1_pos = (eye1_pos[0] + pupil_size, eye1_pos[1] + pupil_size)
+        pupil2_pos = (eye2_pos[0] + pupil_size, eye2_pos[1] + pupil_size)
+
+        pygame.draw.circle(self.window, (0, 0, 0), eye1_pos, eye_size)
+        pygame.draw.circle(self.window, (0, 0, 0), eye2_pos, eye_size)
+        pygame.draw.circle(self.window, (255, 255, 255), pupil1_pos, pupil_size)
+        pygame.draw.circle(self.window, (255, 255, 255), pupil2_pos, pupil_size)
 
         # Draw the apple
         pygame.draw.circle(self.window, (255, 0, 0), (self.apple[0]+10, self.apple[1]+10), 10)
