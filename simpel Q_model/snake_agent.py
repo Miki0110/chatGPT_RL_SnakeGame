@@ -35,10 +35,10 @@ def take_action(snake, action, speed):
         reward = 0  # Nothing happened
     elif distance > prev_distance:
         # print("bad")
-        reward = -1
+        reward = 0
     else:
         # print("better")
-        reward = 1
+        reward = 0
 
     prev_distance = distance
     return current_state, reward, False
