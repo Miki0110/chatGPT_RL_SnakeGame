@@ -3,18 +3,19 @@ from snake_class import SnakeGame
 from deep_q_model import QLearning, QNetwork
 from collections import deque
 import torch
+import torch.multiprocessing as mp
 import random
 import matplotlib.pyplot as plt
 
 prev_distance = 2000
 BATCH_SIZE = 5000
 
+q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left",
+            "food right", "food up", "food down"]
+actions = ["straight", "right turn", "left turn"]
 
 class Agent:
     def __init__(self, alpha, gamma, batch_size):
-        q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left",
-                    "food right", "food up", "food down"]
-        actions = ["straight", "right turn", "left turn"]
         self.episode = 0  # Amount of lives
         self.epsilon = 0  # Chance for random inputs
         self.gamma = gamma
@@ -110,10 +111,9 @@ def train_model(n_episodes):
     # Init values for tracking
     scores = []
     mean_scores = []
-    total_score = 0
     record = 0
     # Initialise the agent
-    agent = Agent(0.01, 0.9, 1000)
+    agent = Agent(0.01, 0.9, n_episodes)
     # Start the snake game
     snake = SnakeGame("Training", 1000, 800)
     # Initialise the game
@@ -137,22 +137,19 @@ def train_model(n_episodes):
         agent.remember(state_old, calc_action, reward, state_new, completion)
 
         if completion:
-            snake.new_game()
             agent.episode += 1
             agent.train_long_memory()
             if score > record:
                 record = score
                 agent.model.save("DQN_model.pth")
+            print("----------------------------------------------")
             print(f'Game:{agent.episode}, Score:{score}, Record:{record}')
+            print("----------------------------------------------")
 
             scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.episode
+            mean_score = np.mean(score)
             mean_scores.append(mean_score)
             agent.plot_data(scores, mean_scores)
-
-
-
 
 
 # MAIN LOOP

@@ -106,6 +106,7 @@ class SnakeGame:
         self.death = False
         self.reward = False
         self.debug = False
+        self.display = False
 
     def new_game(self):
         # Define the snake's initial position and movement speed
@@ -121,7 +122,7 @@ class SnakeGame:
         self.direction = "left"
 
         # Initialize the game clock
-        self.clock = time.perf_counter()*1000
+        self.clock = int(time.perf_counter()*1000)
 
     def iterate_game(self):
         speed = self.square_size
@@ -130,6 +131,7 @@ class SnakeGame:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            # Increase or decrease update rate
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP and self.update_rate > 0:
                     self.update_rate += -5
@@ -139,13 +141,22 @@ class SnakeGame:
                     self.update_rate = 0
                 if event.key == pygame.K_RIGHT:
                     self.update_rate = 50
+
+                # Start the debugger
                 if event.key == pygame.K_b:
                     if self.debug:
                         self.debug = False
                     else:
                         self.debug = True
+                # Start new game incase the snake is stuck
                 if event.key == pygame.K_ESCAPE:
                     self.new_game()
+                # Turn off display
+                if event.key == pygame.K_d:
+                    if self.display:
+                        self.display = False
+                    else:
+                        self.display = True
                 print(f'update rate: {self.update_rate}')
 
         # To stop too many inputs at once
@@ -164,12 +175,13 @@ class SnakeGame:
         # Check for collision
         self.snake_collision()
         # update the screen
-        self.update_screen()
+        if self.display:
+            self.update_screen()
 
         # Wait for the timer to pass
         while True:
-            if self.clock+self.update_rate < time.perf_counter()*1000:
-                self.clock = time.perf_counter()*1000
+            if self.clock+self.update_rate < int(time.perf_counter()*1000):
+                self.clock = int(time.perf_counter()*1000)
                 break
 
     def q_action(self, action):
@@ -221,9 +233,7 @@ class SnakeGame:
         # Find the food direction
         food_direction = np.array([apple_pos[0] < position[0], apple_pos[0] > position[0],
                                    apple_pos[1] < position[1], apple_pos[1] > position[1]], dtype=int)
-        if self.debug:
-            print(f'direction:{cur_direction}')
-            print(f'food direction: {food_direction}')
+
 
         if self.death:
             self.death = False
@@ -237,45 +247,56 @@ class SnakeGame:
     def collision_check(self, position):
         """[Danger straight", "Danger right", "Danger Left]"""
         danger = np.array([0, 0, 0])
+        direction = self.direction
         # Check for walls by checking if the snake head is near an edge
         # Left or right side
-        if int(position[0]) <= 4:
-            distance = position[0]
-            if self.direction == "left":
-                danger[0] = distance
-            elif self.direction == "down":
-                danger[1] = distance
-            elif self.direction == "up":
-                danger[2] = distance
+        if int(position[0])+1 <= 4:
+            # Find the distance
+            distance = position[0]+1
+            if direction == "left":
+                danger[0] = distance  # Danger in front
+            elif direction == "down":
+                danger[1] = distance  # Danger to the right
+            elif direction == "up":
+                danger[2] = distance  # Danger to the left
         elif int(position[0]) >= int(self.width // 20) - 4:
+            # Find the distance
             distance = int(self.width // 20) - position[0]
-            if self.direction == "right":
-                danger[0] = distance
-            elif self.direction == "up":
-                danger[1] = distance
-            elif self.direction == "down":
-                danger[2] = distance
+            if direction == "right":
+                danger[0] = distance  # Danger in front
+            elif direction == "up":
+                danger[1] = distance  # Danger to the right
+            elif direction == "down":
+                danger[2] = distance  # Danger to the left
+
         # Above or below
-        if int(position[1]) <= 4:
-            distance = position[1]
-            if self.direction == "up":
-                danger[0] = distance
-            elif self.direction == "left":
-                danger[1] = distance
-            elif self.direction == "right":
-                danger[2] = distance
+        if int(position[1])+1 <= 4:
+            # Find the distance
+            distance = position[1]+1
+            if direction == "up":
+                danger[0] = distance  # Danger in front
+            elif direction == "left":
+                danger[1] = distance  # Danger to the right
+            elif direction == "right":
+                danger[2] = distance  # Danger to the left
         elif int(position[1]) >= int(self.height // 20) - 4:
+            # Find the distance
             distance = int(self.height // 20) - position[1]
-            if self.direction == "down":
-                danger[0] = distance
-            elif self.direction == "right":
-                danger[1] = distance
-            elif self.direction == "left":
-                danger[2] = distance
+            if direction == "down":
+                danger[0] = distance  # Danger in front
+            elif direction == "right":
+                danger[1] = distance  # Danger to the right
+            elif direction == "left":
+                danger[2] = distance  # Danger to the left
 
         # Check if the snake is near its own body
         snake_body = self.snake_body[:-2] // 20  # Convert into the grid format
         for body in snake_body:
+            # Check to see if the body part is behind the snake
+            if direction == "up" and body[1] > position[1] or direction == "down" and body[1] < position[1] \
+            or direction == "left" and body[0] > position[0] or direction == "right" and body[0] < position[0]:
+                continue
+
             # Check if the body parts are 1 unit away from the head
             vertical = (body[0] == position[0] and abs(position[1] - body[1]) <= 4)
             horizontal = (body[1] == position[1] and abs(position[0] - body[0]) <= 4)
@@ -324,7 +345,11 @@ class SnakeGame:
                         danger[2] = distance
         # In case I want info
         if self.debug:
-            print(f'danger: {danger}')
+            dangers = ["straight", "right", "left"]
+            for idx, val in enumerate(danger):
+                if val != 0:
+                    print(f"current direction: {direction}")
+                    print(f"Danger at {dangers[idx]}: {val}")
         return danger
 
     def end_game(self):

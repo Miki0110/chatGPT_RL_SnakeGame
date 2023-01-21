@@ -4,7 +4,7 @@ import pygame
 
 # MAIN LOOP
 if __name__ == "__main__":
-    game = SnakeGame("Tester", 800, 800)
+    game = SnakeGame("Tester", 400, 400)
     game.new_game()
     game.debug = True
     clock = pygame.time.Clock()
@@ -21,5 +21,5 @@ if __name__ == "__main__":
                 if event.key == pygame.K_DOWN:
                     game.direction = "down"
                 clock.tick(10)
-                game.collision_check(game.current_pos // 20)
                 game.iterate_game()
+                game.collision_check(game.current_pos // 20)

@@ -32,9 +32,6 @@ class QLearning:
         # Mean Squared error loss function
         self.criterion = torch.nn.MSELoss()
 
-        for i in self.model.parameters():
-            print(i.is_cuda)
-
     def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(state, dtype=torch.float).cuda()
         next_state = torch.tensor(next_state, dtype=torch.float).cuda()
