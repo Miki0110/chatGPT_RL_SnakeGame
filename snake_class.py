@@ -238,78 +238,90 @@ class SnakeGame:
         """[Danger straight", "Danger right", "Danger Left]"""
         danger = np.array([0, 0, 0])
         # Check for walls by checking if the snake head is near an edge
-        if int(position[0]) == 0:
+        # Left or right side
+        if int(position[0]) <= 4:
+            distance = position[0]
             if self.direction == "left":
-                danger[0] = 1
+                danger[0] = distance
             elif self.direction == "down":
-                danger[1] = 1
+                danger[1] = distance
             elif self.direction == "up":
-                danger[2] = 1
-        elif int(position[0]) == int(self.width // 20) - 1:
+                danger[2] = distance
+        elif int(position[0]) >= int(self.width // 20) - 4:
+            distance = int(self.width // 20) - position[0]
             if self.direction == "right":
-                danger[0] = 1
+                danger[0] = distance
             elif self.direction == "up":
-                danger[1] = 1
+                danger[1] = distance
             elif self.direction == "down":
-                danger[2] = 1
-        elif int(position[1]) == 0:
+                danger[2] = distance
+        # Above or below
+        if int(position[1]) <= 4:
+            distance = position[1]
             if self.direction == "up":
-                danger[0] = 1
+                danger[0] = distance
             elif self.direction == "left":
-                danger[1] = 1
+                danger[1] = distance
             elif self.direction == "right":
-                danger[2] = 1
-        elif int(position[1]) == int(self.height // 20) - 1:
+                danger[2] = distance
+        elif int(position[1]) >= int(self.height // 20) - 4:
+            distance = int(self.height // 20) - position[1]
             if self.direction == "down":
-                danger[0] = 1
+                danger[0] = distance
             elif self.direction == "right":
-                danger[1] = 1
+                danger[1] = distance
             elif self.direction == "left":
-                danger[2] = 1
+                danger[2] = distance
 
         # Check if the snake is near its own body
         snake_body = self.snake_body[:-2] // 20  # Convert into the grid format
         for body in snake_body:
             # Check if the body parts are 1 unit away from the head
-            vertical = (body[0] == position[0] and abs(position[1] - body[1]) == 1)
-            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) == 1)
+            vertical = (body[0] == position[0] and abs(position[1] - body[1]) <= 4)
+            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) <= 4)
+
+            # Set distances
+            if vertical:
+                distance = abs(position[1] - body[1])
+            elif horizontal:
+                distance = abs(position[0] - body[0])
 
             # The direction of danger changes depending on the direction of the snake
             if self.direction == "up":
                 if vertical:
-                    danger[0] = 1
+                    danger[0] = distance
                 elif horizontal:
                     if body[0] > position[0]:  # While moving up, to the right is +1 and left -1
-                        danger[1] = 1
+                        danger[1] = distance
                     else:
-                        danger[2] = 1
+                        danger[2] = distance
 
             elif self.direction == "down":
                 if vertical:
-                    danger[0] = 1
+                    danger[0] = distance
                 elif horizontal:
                     if body[0] < position[0]:  # While moving down, to the right is -1 and left +1
-                        danger[1] = 1
+                        danger[1] = distance
                     else:
-                        danger[2] = 1
+                        danger[2] = distance
 
             elif self.direction == "left":  # While moving left, to the right is -1 and left +1
                 if horizontal:
-                    danger[0] = 1
+                    danger[0] = distance
                 elif vertical:
                     if body[0] > position[0]:
-                        danger[1] = 1
+                        danger[1] = distance
                     else:
-                        danger[2] = 1
+                        danger[2] = distance
 
             elif self.direction == "right":  # While moving right, to the right is +1 and left -1
                 if horizontal:
-                    danger[0] = 1
+                    danger[0] = distance
                 elif vertical:
                     if body[0] < position[0]:
-                        danger[1] = 1
+                        danger[1] = distance
                     else:
-                        danger[2] = 1
+                        danger[2] = distance
         # In case I want info
         if self.debug:
             print(f'danger: {danger}')

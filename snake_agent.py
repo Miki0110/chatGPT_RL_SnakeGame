@@ -4,9 +4,10 @@ from deep_q_model import QLearning, QNetwork
 from collections import deque
 import torch
 import random
+import matplotlib.pyplot as plt
 
 prev_distance = 2000
-BATCH_SIZE = 1000
+BATCH_SIZE = 5000
 
 
 class Agent:
@@ -23,6 +24,19 @@ class Agent:
         # Init the model and trainer
         self.model = QNetwork(len(q_states), 256, len(actions))
         self.trainer = QLearning(self.model, learning_rate=alpha, discount_factor=self.gamma)
+
+        # Plotting stuff
+        plt.ion()
+        plt.show()
+        # labels
+        plt.xlabel('Episodes')
+        plt.ylabel('Scores')
+        # Legends
+        plt.plot(0, 0, 'b-', label='score')
+        plt.plot(0, 0, 'r-', label='mean score')
+        # plot legend
+        plt.legend()
+
 
     def get_action(self, state):
         # random moves: tradeoff explotation / exploitation
@@ -52,6 +66,16 @@ class Agent:
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
 
+    def plot_data(self, scores, mean_scores):
+        episodes = range(1, len(scores) + 1)
+        # plot data
+        plt.plot(episodes, scores, 'b-', label='score')
+        plt.plot(episodes, mean_scores, 'r-', label='mean score')
+
+        # show plot
+        plt.draw()
+        plt.pause(0.001)
+
 
 # Function for taking actions in the snake game
 def take_action(snake, action):
@@ -66,7 +90,6 @@ def take_action(snake, action):
     # Check if the snake failed
     if event < 0:
         reward = -100  # failed
-        # print("failed")
         return current_state, reward, True, score
     elif event > 0:
         reward = 100  # got an apple
@@ -74,10 +97,10 @@ def take_action(snake, action):
         reward = 0  # Nothing happened
     elif distance > prev_distance:
         # print("bad")
-        reward = 0
+        reward = -1
     else:
         # print("better")
-        reward = 0
+        reward = 1
 
     prev_distance = distance
     return current_state, reward, False, score
@@ -126,7 +149,10 @@ def train_model(n_episodes):
             total_score += score
             mean_score = total_score / agent.episode
             mean_scores.append(mean_score)
-            #plot(plot_scores, plot_mean_scores)
+            agent.plot_data(scores, mean_scores)
+
+
+
 
 
 # MAIN LOOP
