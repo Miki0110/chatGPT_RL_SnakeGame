@@ -90,7 +90,7 @@ class SnakeGame:
         pygame.init()
         pygame.display.set_caption(model_name)
         self.name = model_name
-        self.update_rate = 50
+        self.update_rate = 0
 
         # Define the game window size
         self.width = width

@@ -23,20 +23,21 @@ class Agent:
         self.BATCH_SIZE = batch_size
 
         # Init the model and trainer
-        self.model = QNetwork(len(q_states), 256, len(actions))
+        self.model = QNetwork(len(q_states), 256, len(actions)).share_memory()
         self.trainer = QLearning(self.model, learning_rate=alpha, discount_factor=self.gamma)
 
         # Plotting stuff
-        plt.ion()
-        plt.show()
+        #
         # labels
-        plt.xlabel('Episodes')
-        plt.ylabel('Scores')
+        #plt.xlabel('Episodes')
+        #plt.ylabel('Scores')
         # Legends
-        plt.plot(0, 0, 'b-', label='score')
-        plt.plot(0, 0, 'r-', label='mean score')
+        #plt.plot(0, 0, 'b-', label='score')
+        #plt.plot(0, 0, 'r-', label='mean score')
         # plot legend
-        plt.legend()
+        #plt.legend()
+        self.scores = []
+        self.mean_scores = []
 
 
     def get_action(self, state):
@@ -47,8 +48,8 @@ class Agent:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
-            state0 = torch.tensor(state, dtype=torch.float).cuda()
-            prediction = self.model(state0).cuda()  # prediction by model
+            state0 = torch.tensor(state, dtype=torch.float).cpu()
+            prediction = self.model(state0).cpu()  # prediction by model
             move = torch.argmax(prediction).item()
             final_move[move] = 1
         return final_move
@@ -67,15 +68,59 @@ class Agent:
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
 
-    def plot_data(self, scores, mean_scores):
-        episodes = range(1, len(scores) + 1)
+    def plot_data(self):
+        episodes = range(1, len(self.scores) + 1)
         # plot data
-        plt.plot(episodes, scores, 'b-', label='score')
-        plt.plot(episodes, mean_scores, 'r-', label='mean score')
+        plt.ion()
+        plt.show()
+        plt.plot(episodes, self.scores, 'b-', label='score')
+        plt.plot(episodes, self.mean_scores, 'r-', label='mean score')
 
         # show plot
         plt.draw()
         plt.pause(0.001)
+
+    def train_model(self, plot, name):
+        # Init values for tracking
+
+        record = 0
+
+        # Start the snake game
+        snake = SnakeGame(name, 1000, 800)
+        # Initialise the game
+        snake.new_game()
+        while True:
+            # Get starting state
+            state_old, _, _, _ = snake.get_state_qmodel()
+
+            # Get the calculated action
+            calc_action = self.get_action(state_old)
+
+            # Proceed with the game
+            state_new, reward, completion, new_score = take_action(snake, calc_action)
+            if not completion:
+                score = new_score
+
+            # Train the sucker
+            self.train_short_memory(state_old, calc_action, reward, state_new, completion)
+
+            # remember
+            self.remember(state_old, calc_action, reward, state_new, completion)
+
+            if completion:
+                self.episode += 1
+                self.train_long_memory()
+                if score > record:
+                    record = score
+                    self.model.save("DQN_model.pth")
+                print("----------------------------------------------")
+                print(f'Game:{self.episode}, Score:{score}, Record:{record}')
+                print("----------------------------------------------")
+                if plot:
+                    self.scores.append(int(score))
+                    mean_score = np.mean(self.scores)
+                    self.mean_scores.append(mean_score)
+                    self.plot_data()
 
 
 # Function for taking actions in the snake game
@@ -107,51 +152,23 @@ def take_action(snake, action):
     return current_state, reward, False, score
 
 
-def train_model(n_episodes):
-    # Init values for tracking
-    scores = []
-    mean_scores = []
-    record = 0
-    # Initialise the agent
-    agent = Agent(0.01, 0.9, n_episodes)
-    # Start the snake game
-    snake = SnakeGame("Training", 1000, 800)
-    # Initialise the game
-    snake.new_game()
-    while True:
-        # Get starting state
-        state_old, _, _, _ = snake.get_state_qmodel()
-
-        # Get the calculated action
-        calc_action = agent.get_action(state_old)
-
-        # Proceed with the game
-        state_new, reward, completion, new_score = take_action(snake, calc_action)
-        if not completion:
-            score = new_score
-
-        # Train the sucker
-        agent.train_short_memory(state_old, calc_action, reward, state_new, completion)
-
-        # remember
-        agent.remember(state_old, calc_action, reward, state_new, completion)
-
-        if completion:
-            agent.episode += 1
-            agent.train_long_memory()
-            if score > record:
-                record = score
-                agent.model.save("DQN_model.pth")
-            print("----------------------------------------------")
-            print(f'Game:{agent.episode}, Score:{score}, Record:{record}')
-            print("----------------------------------------------")
-
-            scores.append(score)
-            mean_score = np.mean(score)
-            mean_scores.append(mean_score)
-            agent.plot_data(scores, mean_scores)
-
-
 # MAIN LOOP
 if __name__ == "__main__":
-    train_model(1000)
+    # Initialise the agent
+    agent = Agent(0.01, 0.9, 5000)
+
+    num_processes = 4
+    processes = []
+
+    # Start the first process with plots
+    p = mp.Process(target=agent.train_model, args=(True, "Trainer plotter",))
+    p.start()
+    processes.append(p)
+    for rank in range(num_processes-1):
+        p = mp.Process(target=agent.train_model, args=(False, "Trainer", ))
+        p.start()
+        processes.append(p)
+    # Wait for them to finish
+    for p in processes:
+        p.join()
+        #agent.train_model(1000)

@@ -5,8 +5,8 @@ import os
 class QNetwork(torch.nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
-        self.linear1 = torch.nn.Linear(input_size, hidden_size).cuda()
-        self.linear2 = torch.nn.Linear(hidden_size, output_size).cuda()
+        self.linear1 = torch.nn.Linear(input_size, hidden_size).cpu()
+        self.linear2 = torch.nn.Linear(hidden_size, output_size).cpu()
 
     def forward(self, x):
         x = torch.nn.functional.relu(self.linear1(x))
@@ -33,10 +33,10 @@ class QLearning:
         self.criterion = torch.nn.MSELoss()
 
     def train_step(self, state, action, reward, next_state, done):
-        state = torch.tensor(state, dtype=torch.float).cuda()
-        next_state = torch.tensor(next_state, dtype=torch.float).cuda()
-        action = torch.tensor(action, dtype=torch.long).cuda()
-        reward = torch.tensor(reward, dtype=torch.float).cuda()
+        state = torch.tensor(state, dtype=torch.float).cpu()
+        next_state = torch.tensor(next_state, dtype=torch.float).cpu()
+        action = torch.tensor(action, dtype=torch.long).cpu()
+        reward = torch.tensor(reward, dtype=torch.float).cpu()
 
         # if only one parameter to train , then convert to tuple of shape (1, x)
         if (len(state.shape) == 1):
