@@ -18,11 +18,11 @@ actions = ["straight", "right turn", "left turn"]
 class Agent:
     def __init__(self, alpha, gamma, model, PLOT_BOOL):
         self.episode = 0  # Amount of lives
-        self.epsilon = 0.1  # Chance for random inputs
+        self.epsilon = 0.15  # Chance for random inputs
         self.gamma = gamma
         self.memory = deque(maxlen=100_000)  # popleft()
         self.BATCH_SIZE = 5000
-        self.decay_rate = 0.02
+        self.decay_rate = 0.01
         self.plot = PLOT_BOOL
 
         # Init the model and trainer
@@ -69,7 +69,11 @@ class Agent:
         else:
             mini_sample = self.memory
         states, actions, rewards, next_states, dones = zip(*mini_sample)
-        self.trainer.train_step(states, actions, rewards, next_states, dones)
+        next_states = np.array(next_states)
+        states = np.array(states)
+        actions = np.array(actions)
+
+        self.trainer.train_step(states, actions, np.array(rewards, dtype=int), next_states, np.array(dones, dtype=int))
 
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
@@ -93,6 +97,7 @@ def take_action(snake, action):
 
     # Get state from the game
     current_state, distance, event, score = snake.get_state_qmodel()
+
 
     # Check if the snake failed
     if event < 0:
@@ -123,10 +128,10 @@ def train_model(n_snakes):
     # Initialise the first agent -> this is the one we plot through
     agents.append(Agent(0.01, 0.9, model, True))
     # Start the snake game
-    snakes.append(SnakeGame("Training plotter", 1000, 800, True))
+    snakes.append(SnakeGame("Training plotter", 1000, 800, True, view_distance=1))
     for n in range(n_snakes-1):
         agents.append(Agent(0.01, 0.9, model, False))
-        snakes.append(SnakeGame("Training", 1000, 800, False))
+        snakes.append(SnakeGame("Training", 1000, 800, False, view_distance=1))
 
     # Initialise the game
     for snake in snakes:
@@ -153,6 +158,9 @@ def train_model(n_snakes):
 
             if completion:
                 snake.new_game()
+                # check for debug
+                agent.trainer.debug = snake.debug
+
                 agent.episode += 1
                 agent.train_long_memory()
                 if score > record:
@@ -171,4 +179,4 @@ def train_model(n_snakes):
 
 # MAIN LOOP
 if __name__ == "__main__":
-    train_model(5)
+    train_model(1)

@@ -32,6 +32,10 @@ class QLearning:
         self.optimer = torch.optim.Adam(model.parameters(), lr=self.alpha)
         # Loss function
         self.criterion = torch.nn.MSELoss()
+        self.debug = False
+
+    def set_debugger(self, value):
+        self.debug = value
 
     def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(state, dtype=torch.float).cuda()
@@ -40,7 +44,7 @@ class QLearning:
         reward = torch.tensor(reward, dtype=torch.float).cuda()
 
         # if only one parameter to train , then convert to tuple of shape (1, x)
-        if (len(state.shape) == 1):
+        if len(state.shape) == 1:
             # (1, x)
             state = torch.unsqueeze(state, 0)
             next_state = torch.unsqueeze(next_state, 0)
@@ -48,7 +52,7 @@ class QLearning:
             reward = torch.unsqueeze(reward, 0)
             done = (done,)
         #Debugger
-        else:
+        elif self.debug:
             # Print out the moment the snake died
             idx = torch.argmin(reward)
             print(f'long term memory:\naction = {action.data[idx]}\nstate = {state.data[idx]}\nreward = {reward.data[idx]}')

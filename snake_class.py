@@ -6,7 +6,7 @@ import time
 
 class SnakeGame:
 
-    def __init__(self, model_name, width, height, display):
+    def __init__(self, model_name, width, height, display, view_distance=4):
         # Initialize pygame
         pygame.init()
         pygame.display.set_caption(model_name)
@@ -29,6 +29,8 @@ class SnakeGame:
         self.reward = False
         self.debug = False
         self.display = display
+        self.view_distance = view_distance
+
     def gen_apple(self):
         # Initialize the apple position
         board = np.zeros((int(self.width // 20), int(self.height // 20)))
@@ -307,7 +309,7 @@ class SnakeGame:
         direction = self.direction
         # Check for walls by checking if the snake head is near an edge
         # Left or right side
-        if int(position[0])+1 <= 4:
+        if int(position[0])+1 <= self.view_distance:
             # Find the distance
             distance = position[0]+1
             if direction == "left":
@@ -320,7 +322,7 @@ class SnakeGame:
             elif direction == "up":
                 danger[2] = distance  # Danger to the left
                # danger[4] = distance
-        elif int(position[0]) >= int(self.width // 20) - 4:
+        elif int(position[0]) >= int(self.width // 20) - self.view_distance:
             # Find the distance
             distance = int(self.width // 20) - position[0]
             if direction == "right":
@@ -335,7 +337,7 @@ class SnakeGame:
                 #danger[4] = distance
 
         # Above or below
-        if int(position[1])+1 <= 4:
+        if int(position[1])+1 <= self.view_distance:
             # Find the distance
             distance = position[1]+1
 
@@ -373,7 +375,7 @@ class SnakeGame:
                  else:
                      danger[4] = distance"""
 
-        elif int(position[1]) >= int(self.height // 20) - 4:
+        elif int(position[1]) >= int(self.height // 20) - self.view_distance:
             # Find the distance
             distance = int(self.height // 20) - position[1]
 
@@ -421,8 +423,8 @@ class SnakeGame:
                 continue
 
             # Check if the body parts are 4 units away from the head
-            vertical = (body[0] == position[0] and abs(position[1] - body[1]) <= 4)
-            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) <= 4)
+            vertical = (body[0] == position[0] and abs(position[1] - body[1]) <= self.view_distance)
+            horizontal = (body[1] == position[1] and abs(position[0] - body[0]) <= self.view_distance)
             # Check the diagonal
             """if abs(body[1] - position[1]) <= 4 and abs(body[0] - position[0]) <= 4\
                     and not body[0] - position[0] == 0 and not body[1] - position[1] == 0:
@@ -496,14 +498,6 @@ class SnakeGame:
                     else:
                         danger[4] = distance"""
 
-        # In case I want info
-        if self.debug:
-            dangers = ["straight", "right", "left", "diagonal right", "diagonal left"]
-            for idx, val in enumerate(danger):
-                if val != 0:
-                    print(f"current direction: {direction}")
-                    print(f"Danger at {dangers[idx]}: {val}")
-            print(danger)
         return danger
 
     def end_game(self):
