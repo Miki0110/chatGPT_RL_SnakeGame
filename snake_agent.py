@@ -16,29 +16,30 @@ q_states = ["Danger straight", "Danger right", "Danger Left", #"Danger Diagonal 
 actions = ["straight", "right turn", "left turn"]
 
 class Agent:
-    def __init__(self, alpha, gamma, batch_size):
+    def __init__(self, alpha, gamma, model, PLOT_BOOL):
         self.episode = 0  # Amount of lives
         self.epsilon = 0.1  # Chance for random inputs
         self.gamma = gamma
         self.memory = deque(maxlen=100_000)  # popleft()
-        self.BATCH_SIZE = batch_size
+        self.BATCH_SIZE = 5000
         self.decay_rate = 0.02
+        self.plot = PLOT_BOOL
 
         # Init the model and trainer
-        self.model = QNetwork(len(q_states), 256, len(actions))
+        self.model = model
         self.trainer = QLearning(self.model, learning_rate=alpha, discount_factor=self.gamma)
 
-        # Plotting stuff
-        plt.ion()
-        # labels
-        plt.xlabel('Episodes')
-        plt.ylabel('Scores')
-        # Legends
-        plt.plot(0, 0, 'b-', label='score')
-        plt.plot(0, 0, 'r-', label='mean score')
-        # plot legend
-        plt.legend()
-
+        if self.plot:
+            # Plotting stuff
+            plt.ion()
+            # labels
+            plt.xlabel('Episodes')
+            plt.ylabel('Scores')
+            # Legends
+            plt.plot(0, 0, 'b-', label='score')
+            plt.plot(0, 0, 'r-', label='mean score')
+            # plot legend
+            plt.legend()
 
     def get_action(self, state):
         # random moves: tradeoff explotation / exploitation
@@ -110,52 +111,64 @@ def take_action(snake, action):
     return current_state, reward, False, score
 
 
-def train_model(n_episodes):
+def train_model(n_snakes):
     # Init values for tracking
+    snakes = []
+    agents = []
     scores = []
     mean_scores = []
     record = 0
-    # Initialise the agent
-    agent = Agent(0.01, 0.9, n_episodes)
+    # Initiate the model
+    model = QNetwork(len(q_states), 256, len(actions))
+    # Initialise the first agent -> this is the one we plot through
+    agents.append(Agent(0.01, 0.9, model, True))
     # Start the snake game
-    snake = SnakeGame("Training", 1000, 800)
+    snakes.append(SnakeGame("Training plotter", 1000, 800, True))
+    for n in range(n_snakes-1):
+        agents.append(Agent(0.01, 0.9, model, False))
+        snakes.append(SnakeGame("Training", 1000, 800, False))
+
     # Initialise the game
-    snake.new_game()
+    for snake in snakes:
+        snake.new_game()
+
     while True:
-        # Get starting state
-        state_old, _, _, _ = snake.get_state_qmodel()
+        for snake, agent in zip(snakes, agents):
+            # Get starting state
+            state_old, _, _, _ = snake.get_state_qmodel()
 
-        # Get the calculated action
-        calc_action = agent.get_action(state_old)
+            # Get the calculated action
+            calc_action = agent.get_action(state_old)
 
-        # Proceed with the game
-        state_new, reward, completion, new_score = take_action(snake, calc_action)
-        if not completion:
-            score = new_score
+            # Proceed with the game
+            state_new, reward, completion, new_score = take_action(snake, calc_action)
+            if not completion:
+                score = new_score
 
-        # Train the sucker
-        agent.train_short_memory(state_old, calc_action, reward, state_new, completion)
+            # Train the sucker
+            agent.train_short_memory(state_old, calc_action, reward, state_new, completion)
 
-        # remember
-        agent.remember(state_old, calc_action, reward, state_new, completion)
+            # remember
+            agent.remember(state_old, calc_action, reward, state_new, completion)
 
-        if completion:
-            snake.new_game()
-            agent.episode += 1
-            agent.train_long_memory()
-            if score > record:
-                record = score
-                agent.model.save("DQN_model.pth")
-            print("----------------------------------------------")
-            print(f'Game:{agent.episode}, Score:{score}, Record:{record}')
-            print("----------------------------------------------")
+            if completion:
+                snake.new_game()
+                agent.episode += 1
+                agent.train_long_memory()
+                if score > record:
+                    record = score
+                    agent.model.save("DQN_model.pth")
+                scores.append(score)
+                mean_score = np.mean(scores)
+                mean_scores.append(mean_score)
 
-            scores.append(score)
-            mean_score = np.mean(scores)
-            mean_scores.append(mean_score)
-            agent.plot_data(scores, mean_scores)
+                if agent.plot:
+                    print("----------------------------------------------")
+                    print(f'Game:{len(scores)}, Score:{score}, Record:{record}')
+                    print("----------------------------------------------")
+                    agent.plot_data(scores, mean_scores)
 
 
 # MAIN LOOP
 if __name__ == "__main__":
-    train_model(1000)
+    train_model(5)

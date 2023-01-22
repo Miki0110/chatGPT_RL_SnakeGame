@@ -6,7 +6,7 @@ import time
 
 class SnakeGame:
 
-    def __init__(self, model_name, width, height):
+    def __init__(self, model_name, width, height, display):
         # Initialize pygame
         pygame.init()
         pygame.display.set_caption(model_name)
@@ -19,7 +19,8 @@ class SnakeGame:
         self.square_size = 20
 
         # Initialize the game window
-        self.window = pygame.display.set_mode((self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF, 32)
+        if display:
+            self.window = pygame.display.set_mode((self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF, 32)
 
         # Initialize values
         self.direction = "left"
@@ -27,7 +28,7 @@ class SnakeGame:
         self.death = False
         self.reward = False
         self.debug = False
-        self.display = True
+        self.display = display
     def gen_apple(self):
         # Initialize the apple position
         board = np.zeros((int(self.width // 20), int(self.height // 20)))
@@ -162,7 +163,6 @@ class SnakeGame:
 
         # Update the display
         pygame.display.update()
-
 
     def new_game(self):
         # Define the snake's initial position and movement speed
