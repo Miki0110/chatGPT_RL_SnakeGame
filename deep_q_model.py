@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import os
 
@@ -29,7 +30,7 @@ class QLearning:
 
         # optimizer for weight and biases updation
         self.optimer = torch.optim.Adam(model.parameters(), lr=self.alpha)
-        # Mean Squared error loss function
+        # Loss function
         self.criterion = torch.nn.MSELoss()
 
     def train_step(self, state, action, reward, next_state, done):
@@ -46,6 +47,11 @@ class QLearning:
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
             done = (done,)
+        #Debugger
+        else:
+            # Print out the moment the snake died
+            idx = torch.argmin(reward)
+            print(f'long term memory:\naction = {action.data[idx]}\nstate = {state.data[idx]}\nreward = {reward.data[idx]}')
 
         # 1. Predicted Q value with current state
         pred = self.model(state)

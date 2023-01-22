@@ -3,24 +3,26 @@ from snake_class import SnakeGame
 from deep_q_model import QLearning, QNetwork
 from collections import deque
 import torch
-import torch.multiprocessing as mp
 import random
 import matplotlib.pyplot as plt
+import time
 
 prev_distance = 2000
 BATCH_SIZE = 5000
 
-q_states = ["Danger straight", "Danger right", "Danger Left", "left", "right", "up", "down", "food left",
-            "food right", "food up", "food down"]
+q_states = ["Danger straight", "Danger right", "Danger Left", #"Danger Diagonal Right", "Danger Diagonal Left",
+            "left", "right", "up", "down",
+            "food left", "food right", "food up", "food down"]
 actions = ["straight", "right turn", "left turn"]
 
 class Agent:
     def __init__(self, alpha, gamma, batch_size):
         self.episode = 0  # Amount of lives
-        self.epsilon = 0  # Chance for random inputs
+        self.epsilon = 0.1  # Chance for random inputs
         self.gamma = gamma
         self.memory = deque(maxlen=100_000)  # popleft()
         self.BATCH_SIZE = batch_size
+        self.decay_rate = 0.02
 
         # Init the model and trainer
         self.model = QNetwork(len(q_states), 256, len(actions))
@@ -28,7 +30,6 @@ class Agent:
 
         # Plotting stuff
         plt.ion()
-        plt.show()
         # labels
         plt.xlabel('Episodes')
         plt.ylabel('Scores')
@@ -41,10 +42,15 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff explotation / exploitation
-        self.epsilon = 80 - self.episode
+        if self.episode < 400:
+            epsilon = self.epsilon*np.exp(-self.decay_rate*self.episode)
+        else:
+            epsilon = 0
+        #print(epsilon)
+
         final_move = [0, 0, 0]
-        if random.randint(0, 200) < self.epsilon:
-            move = random.randint(0, 2)
+        if np.random.rand() < epsilon:
+            move = np.random.randint(3)
             final_move[move] = 1
         else:
             state0 = torch.tensor(state, dtype=torch.float).cuda()
@@ -75,7 +81,6 @@ class Agent:
 
         # show plot
         plt.draw()
-        plt.pause(0.001)
 
 
 # Function for taking actions in the snake game
@@ -94,13 +99,11 @@ def take_action(snake, action):
         return current_state, reward, True, score
     elif event > 0:
         reward = 100  # got an apple
-    elif prev_distance == 2000:
-        reward = 0  # Nothing happened
     elif distance > prev_distance:
-        # print("bad")
         reward = -1
+    elif distance == prev_distance or prev_distance == 2000:
+        reward = 0  # Nothing happened
     else:
-        # print("better")
         reward = 1
 
     prev_distance = distance
@@ -137,6 +140,7 @@ def train_model(n_episodes):
         agent.remember(state_old, calc_action, reward, state_new, completion)
 
         if completion:
+            snake.new_game()
             agent.episode += 1
             agent.train_long_memory()
             if score > record:
@@ -147,7 +151,7 @@ def train_model(n_episodes):
             print("----------------------------------------------")
 
             scores.append(score)
-            mean_score = np.mean(score)
+            mean_score = np.mean(scores)
             mean_scores.append(mean_score)
             agent.plot_data(scores, mean_scores)
 
